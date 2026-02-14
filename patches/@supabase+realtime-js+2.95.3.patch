@@ -1,0 +1,126 @@
+diff --git a/node_modules/@supabase/realtime-js/dist/main/lib/route.ts b/node_modules/@supabase/realtime-js/dist/main/lib/route.ts
+new file mode 100644
+index 0000000..294b071
+--- /dev/null
++++ b/node_modules/@supabase/realtime-js/dist/main/lib/route.ts
+@@ -0,0 +1,17 @@
++import { google } from '@ai-sdk/google';
++import { streamText } from 'ai';
++
++// Allow streaming responses up to 30 seconds
++export const maxDuration = 30;
++
++export async function POST(req: Request) {
++    const { messages } = await req.json();
++
++    const result = await streamText({
++        model: google('gemini-1.5-flash'),
++        messages,
++        system: 'You are a helpful AI assistant for Harmony Ops. You help users manage their operations efficiently.',
++    });
++
++    return result.toDataStreamResponse();
++}
+\ No newline at end of file
+diff --git a/node_modules/@supabase/realtime-js/dist/main/lib/websocket-factory.js b/node_modules/@supabase/realtime-js/dist/main/lib/websocket-factory.js
+index d20bc48..8e71efe 100644
+--- a/node_modules/@supabase/realtime-js/dist/main/lib/websocket-factory.js
++++ b/node_modules/@supabase/realtime-js/dist/main/lib/websocket-factory.js
+@@ -29,14 +29,6 @@ class WebSocketFactory {
+                 workaround: 'Use Cloudflare Workers WebSocket API for server-side WebSocket handling, or deploy to a different runtime.',
+             };
+         }
+-        if ((typeof globalThis !== 'undefined' && globalThis.EdgeRuntime) ||
+-            (typeof navigator !== 'undefined' && ((_a = navigator.userAgent) === null || _a === void 0 ? void 0 : _a.includes('Vercel-Edge')))) {
+-            return {
+-                type: 'unsupported',
+-                error: 'Edge runtime detected (Vercel Edge/Netlify Edge). WebSockets are not supported in edge functions.',
+-                workaround: 'Use serverless functions or a different deployment target for WebSocket functionality.',
+-            };
+-        }
+         // Use dynamic property access to avoid Next.js Edge Runtime static analysis warnings
+         const _process = globalThis['process'];
+         if (_process) {
+@@ -46,6 +38,9 @@ class WebSocketFactory {
+                 const versionString = processVersions['node'];
+                 const nodeVersion = parseInt(versionString.replace(/^v/, '').split('.')[0]);
+                 // Node.js 22+ should have native WebSocket
++                if (typeof globalThis.WebSocket !== 'undefined') {
++                    return { type: 'native', constructor: globalThis.WebSocket };
++                }
+                 if (nodeVersion >= 22) {
+                     // Check if native WebSocket is available (should be in Node.js 22+)
+                     if (typeof globalThis.WebSocket !== 'undefined') {
+diff --git a/node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js b/node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
+index 93c592e..541d338 100644
+--- a/node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
++++ b/node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
+@@ -26,14 +26,6 @@ export class WebSocketFactory {
+                 workaround: 'Use Cloudflare Workers WebSocket API for server-side WebSocket handling, or deploy to a different runtime.',
+             };
+         }
+-        if ((typeof globalThis !== 'undefined' && globalThis.EdgeRuntime) ||
+-            (typeof navigator !== 'undefined' && ((_a = navigator.userAgent) === null || _a === void 0 ? void 0 : _a.includes('Vercel-Edge')))) {
+-            return {
+-                type: 'unsupported',
+-                error: 'Edge runtime detected (Vercel Edge/Netlify Edge). WebSockets are not supported in edge functions.',
+-                workaround: 'Use serverless functions or a different deployment target for WebSocket functionality.',
+-            };
+-        }
+         // Use dynamic property access to avoid Next.js Edge Runtime static analysis warnings
+         const _process = globalThis['process'];
+         if (_process) {
+@@ -43,6 +35,9 @@ export class WebSocketFactory {
+                 const versionString = processVersions['node'];
+                 const nodeVersion = parseInt(versionString.replace(/^v/, '').split('.')[0]);
+                 // Node.js 22+ should have native WebSocket
++                if (typeof globalThis.WebSocket !== 'undefined') {
++                    return { type: 'native', constructor: globalThis.WebSocket };
++                }
+                 if (nodeVersion >= 22) {
+                     // Check if native WebSocket is available (should be in Node.js 22+)
+                     if (typeof globalThis.WebSocket !== 'undefined') {
+diff --git a/node_modules/@supabase/realtime-js/src/lib/websocket-factory.ts b/node_modules/@supabase/realtime-js/src/lib/websocket-factory.ts
+index 8dc564b..e70acfc 100644
+--- a/node_modules/@supabase/realtime-js/src/lib/websocket-factory.ts
++++ b/node_modules/@supabase/realtime-js/src/lib/websocket-factory.ts
+@@ -51,7 +51,7 @@ export class WebSocketFactory {
+   /**
+    * Static-only utility – prevent instantiation.
+    */
+-  private constructor() {}
++  private constructor() { }
+   private static detectEnvironment(): WebSocketEnvironment {
+     if (typeof WebSocket !== 'undefined') {
+       return { type: 'native', constructor: WebSocket }
+@@ -79,19 +79,6 @@ export class WebSocketFactory {
+       }
+     }
+ 
+-    if (
+-      (typeof globalThis !== 'undefined' && (globalThis as any).EdgeRuntime) ||
+-      (typeof navigator !== 'undefined' && navigator.userAgent?.includes('Vercel-Edge'))
+-    ) {
+-      return {
+-        type: 'unsupported',
+-        error:
+-          'Edge runtime detected (Vercel Edge/Netlify Edge). WebSockets are not supported in edge functions.',
+-        workaround:
+-          'Use serverless functions or a different deployment target for WebSocket functionality.',
+-      }
+-    }
+-
+     // Use dynamic property access to avoid Next.js Edge Runtime static analysis warnings
+     const _process = (globalThis as any)['process']
+     if (_process) {
+@@ -102,6 +89,10 @@ export class WebSocketFactory {
+         const nodeVersion = parseInt(versionString.replace(/^v/, '').split('.')[0])
+ 
+         // Node.js 22+ should have native WebSocket
++        // Check if native WebSocket is available (e.g. polyfilled or newer Node)
++        if (typeof globalThis.WebSocket !== 'undefined') {
++          return { type: 'native', constructor: globalThis.WebSocket }
++        }
+         if (nodeVersion >= 22) {
+           // Check if native WebSocket is available (should be in Node.js 22+)
+           if (typeof globalThis.WebSocket !== 'undefined') {
