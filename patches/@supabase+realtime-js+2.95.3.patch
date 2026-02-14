@@ -1,27 +1,3 @@
-diff --git a/node_modules/@supabase/realtime-js/dist/main/lib/route.ts b/node_modules/@supabase/realtime-js/dist/main/lib/route.ts
-new file mode 100644
-index 0000000..294b071
---- /dev/null
-+++ b/node_modules/@supabase/realtime-js/dist/main/lib/route.ts
-@@ -0,0 +1,17 @@
-+import { google } from '@ai-sdk/google';
-+import { streamText } from 'ai';
-+
-+// Allow streaming responses up to 30 seconds
-+export const maxDuration = 30;
-+
-+export async function POST(req: Request) {
-+    const { messages } = await req.json();
-+
-+    const result = await streamText({
-+        model: google('gemini-1.5-flash'),
-+        messages,
-+        system: 'You are a helpful AI assistant for Harmony Ops. You help users manage their operations efficiently.',
-+    });
-+
-+    return result.toDataStreamResponse();
-+}
-\ No newline at end of file
 diff --git a/node_modules/@supabase/realtime-js/dist/main/lib/websocket-factory.js b/node_modules/@supabase/realtime-js/dist/main/lib/websocket-factory.js
 index d20bc48..846640f 100644
 --- a/node_modules/@supabase/realtime-js/dist/main/lib/websocket-factory.js
