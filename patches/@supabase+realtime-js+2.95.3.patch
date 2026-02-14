@@ -85,7 +85,7 @@ index 93c592e..d9bc88c 100644
              }
          }
 diff --git a/node_modules/@supabase/realtime-js/src/lib/websocket-factory.ts b/node_modules/@supabase/realtime-js/src/lib/websocket-factory.ts
-index 8dc564b..d64ac6d 100644
+index 8dc564b..9c6582e 100644
 --- a/node_modules/@supabase/realtime-js/src/lib/websocket-factory.ts
 +++ b/node_modules/@supabase/realtime-js/src/lib/websocket-factory.ts
 @@ -51,7 +51,7 @@ export class WebSocketFactory {
@@ -143,3 +143,12 @@ index 8dc564b..d64ac6d 100644
          }
        }
      }
+@@ -139,7 +126,7 @@ export class WebSocketFactory {
+    * Returns the best available WebSocket constructor for the current runtime.
+    *
+    * @example
+-   * ```ts
++   ```ts
+    * const WS = WebSocketFactory.getWebSocketConstructor()
+    * const socket = new WS('wss://realtime.supabase.co/socket')
+    * ```
