@@ -25,19 +25,42 @@ export default function Bookings() {
   const [filter, setFilter] = useState("all");
 
   const fetchBookings = async () => {
-    if (!workspaceId) return;
-    let query = supabase
-      .from("bookings")
-      .select("*, contacts(name, email), services(name, duration, location)")
-      .eq("workspace_id", workspaceId)
-      .order("booking_date", { ascending: true });
-    if (filter !== "all") query = query.eq("status", filter as any);
-    const { data } = await query;
-    setBookings(data || []);
-    setLoading(false);
+    if (!workspaceId) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      let query = supabase
+        .from("bookings")
+        .select("*, contacts:contact_id(name, email), services:service_id(name, duration, location)")
+        .eq("workspace_id", workspaceId)
+        .order("booking_time", { ascending: true });
+
+      if (filter !== "all") query = query.eq("status", filter as any);
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error("Error fetching bookings:", error);
+        toast({ title: "Error fetching bookings", description: error.message, variant: "destructive" });
+      }
+
+      setBookings(data || []);
+    } catch (err) {
+      console.error("Bookings fetch error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { fetchBookings(); }, [workspaceId, filter]);
+  useEffect(() => {
+    if (!workspaceId) {
+      setLoading(false);
+      return;
+    }
+    fetchBookings();
+  }, [workspaceId, filter]);
 
   const updateStatus = async (bookingId: string, status: string) => {
     await supabase.from("bookings").update({ status: status as any }).eq("id", bookingId);
@@ -92,8 +115,8 @@ export default function Bookings() {
                         <p className="font-medium text-sm">{booking.services?.name}</p>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
                           <span className="flex items-center gap-1"><User className="h-3 w-3" />{booking.contacts?.name}</span>
-                          <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" />{booking.booking_date}</span>
-                          <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{booking.booking_time}</span>
+                          <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" />{new Date(booking.booking_time).toLocaleDateString()}</span>
+                          <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{new Date(booking.booking_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           {booking.services?.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{booking.services.location}</span>}
                         </div>
                       </div>

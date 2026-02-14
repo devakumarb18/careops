@@ -39,31 +39,46 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!workspaceId) return;
+    if (!workspaceId) {
+      setLoading(false);
+      return;
+    }
 
     const fetchData = async () => {
-      const today = new Date().toISOString().split("T")[0];
+      const todayDate = new Date();
+      const today = todayDate.toISOString().split("T")[0];
+      const tomorrowDate = new Date(todayDate);
+      tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+      const tomorrow = tomorrowDate.toISOString().split("T")[0];
 
-      const [bookingsRes, noShowRes, upcomingRes, convoRes, formsRes, inventoryRes, alertsRes] = await Promise.all([
-        supabase.from("bookings").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).eq("booking_date", today),
-        supabase.from("bookings").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).eq("status", "no_show"),
-        supabase.from("bookings").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).gte("booking_date", today).in("status", ["pending", "confirmed"]),
-        supabase.from("conversations").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).eq("status", "open"),
-        supabase.from("form_responses").select("id, form_id", { count: "exact", head: true }).eq("status", "pending"),
-        supabase.from("inventory").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).lte("quantity", 5),
-        supabase.from("alerts").select("*").eq("workspace_id", workspaceId).eq("is_read", false).order("created_at", { ascending: false }).limit(5),
-      ]);
+      try {
+        const [bookingsRes, noShowRes, upcomingRes, convoRes, formsRes, inventoryRes, alertsRes] = await Promise.all([
+          supabase.from("bookings").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).gte("booking_time", today).lt("booking_time", tomorrow),
+          supabase.from("bookings").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).eq("status", "no_show"),
+          supabase.from("bookings").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).gte("booking_time", today).in("status", ["pending", "confirmed"]),
+          supabase.from("conversations").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).eq("status", "open"),
+          supabase.from("form_responses").select("id, form_id", { count: "exact", head: true }).eq("workspace_id", workspaceId).eq("status", "pending"),
+          supabase.from("inventory").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).lte("quantity", 5),
+          supabase.from("alerts").select("*").eq("workspace_id", workspaceId).eq("is_read", false).order("created_at", { ascending: false }).limit(5),
+        ]);
 
-      setStats({
-        todayBookings: bookingsRes.count ?? 0,
-        upcomingBookings: upcomingRes.count ?? 0,
-        noShows: noShowRes.count ?? 0,
-        unansweredMessages: convoRes.count ?? 0,
-        pendingForms: formsRes.count ?? 0,
-        lowStockItems: inventoryRes.count ?? 0,
-      });
-      setAlerts(alertsRes.data ?? []);
-      setLoading(false);
+        if (bookingsRes.error) console.error("Bookings error:", bookingsRes.error);
+        if (alertsRes.error) console.error("Alerts error:", alertsRes.error);
+
+        setStats({
+          todayBookings: bookingsRes.count ?? 0,
+          upcomingBookings: upcomingRes.count ?? 0,
+          noShows: noShowRes.count ?? 0,
+          unansweredMessages: convoRes.count ?? 0,
+          pendingForms: formsRes.count ?? 0,
+          lowStockItems: inventoryRes.count ?? 0,
+        });
+        setAlerts(alertsRes.data ?? []);
+      } catch (error) {
+        console.error("Dashboard fetch error:", error);
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchData();

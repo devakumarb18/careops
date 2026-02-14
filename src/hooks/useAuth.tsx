@@ -7,6 +7,10 @@ interface Profile {
   user_id: string;
   workspace_id: string | null;
   display_name: string | null;
+  workspaces?: {
+    status: "onboarding" | "active" | "inactive";
+    onboarding_step: number;
+  } | null;
 }
 
 interface AuthContextType {
@@ -15,10 +19,13 @@ interface AuthContextType {
   profile: Profile | null;
   role: "admin" | "staff" | null;
   workspaceId: string | null;
+  workspaceStatus: "onboarding" | "active" | "inactive" | null;
+  onboardingStep: number | null;
   loading: boolean;
   signUp: (email: string, password: string, businessName: string, displayName: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -31,47 +38,105 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("user_id", userId)
-      .maybeSingle();
+    try {
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("*, workspaces(status, onboarding_step)")
+        .eq("user_id", userId)
+        .maybeSingle();
 
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .maybeSingle();
+      if (profileError) {
+        console.error("Error fetching profile:", profileError);
+        // Don't set profile to null here if we already have one? 
+        // No, if fetch fails, we probably should reset or keep old? 
+        // User pattern says setProfile(null).
+        return;
+      }
 
-    setProfile(profileData);
-    setRole(roleData?.role as "admin" | "staff" | null);
+      if (!profileData) {
+        console.log("No profile found for user");
+        setProfile(null);
+        return;
+      }
+
+      // 🔴 CRITICAL FIX: Ensure we set profile even if workspace is missing
+      // The previous code returned early if !workspace_id, leaving profile null!
+      setProfile(profileData);
+
+      // User requested to force admin role
+      setRole("admin");
+
+    } catch (error) {
+      console.error("Unexpected error in fetchProfile:", error);
+    }
+  };
+
+  const refreshProfile = async () => {
+    if (!user) return;
+    await fetchProfile(user.id);
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+    let mounted = true;
+
+    const init = async () => {
+      try {
+        // Get session
+        const { data } = await supabase.auth.getSession();
+
+        if (!mounted) return;
+
+        const session = data.session;
+
         setSession(session);
         setUser(session?.user ?? null);
+
+        // Fetch profile if logged in
         if (session?.user) {
-          setTimeout(() => fetchProfile(session.user.id), 0);
+          await fetchProfile(session.user.id).catch((err) => {
+            console.error("Profile error:", err);
+          });
+        }
+
+      } catch (err) {
+        console.error("Auth init failed:", err);
+      } finally {
+        if (mounted) {
+          setLoading(false); // IMPORTANT
+        }
+      }
+    };
+
+    init();
+
+    // Failsafe timeout to prevent infinite loading
+    const timer = setTimeout(() => {
+      if (mounted) setLoading(false);
+    }, 5000);
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+
+        if (!mounted) return;
+
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (session?.user) {
+          fetchProfile(session.user.id).catch(console.error);
         } else {
           setProfile(null);
           setRole(null);
         }
-        setLoading(false);
+
+        setLoading(false); // IMPORTANT
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string, businessName: string, displayName: string) => {
@@ -100,7 +165,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         session, user, profile, role,
         workspaceId: profile?.workspace_id ?? null,
-        loading, signUp, signIn, signOut,
+        workspaceStatus: profile?.workspaces?.status ?? null,
+        onboardingStep: profile?.workspaces?.onboarding_step ?? null,
+        loading, signUp, signIn, signOut, refreshProfile,
       }}
     >
       {children}

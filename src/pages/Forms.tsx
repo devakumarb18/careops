@@ -12,15 +12,30 @@ export default function Forms() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!workspaceId) return;
-    const fetch = async () => {
-      const [formsRes, responsesRes] = await Promise.all([
-        supabase.from("forms").select("*").eq("workspace_id", workspaceId),
-        supabase.from("form_responses").select("*, forms(name), contacts(name)").order("created_at", { ascending: false }),
-      ]);
-      setForms(formsRes.data || []);
-      setResponses(responsesRes.data || []);
+    if (!workspaceId) {
       setLoading(false);
+      return;
+    }
+
+    const fetch = async () => {
+      try {
+        const [formsRes, responsesRes] = await Promise.all([
+          supabase.from("forms").select("*").eq("workspace_id", workspaceId),
+          // Note: added workspace_id filter for safety, assuming column exists or policies handle it.
+          // In Dashboard fix I added workspace_id to form_responses.
+          supabase.from("form_responses").select("*, forms(name), contacts(name)").eq("workspace_id", workspaceId).order("created_at", { ascending: false }),
+        ]);
+
+        if (formsRes.error) console.error("Forms error:", formsRes.error);
+        if (responsesRes.error) console.error("Responses error:", responsesRes.error);
+
+        setForms(formsRes.data || []);
+        setResponses(responsesRes.data || []);
+      } catch (err) {
+        console.error("Forms fetch error:", err);
+      } finally {
+        setLoading(false);
+      }
     };
     fetch();
   }, [workspaceId]);

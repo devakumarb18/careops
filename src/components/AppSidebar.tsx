@@ -28,9 +28,13 @@ const staffItems = [
 ];
 
 export function AppSidebar() {
-  const { role, profile, signOut } = useAuth();
+  const { role, profile, loading, signOut, user } = useAuth();
   const location = useLocation();
-  const items = role === "admin" ? adminItems : staffItems;
+  const items = adminItems;
+
+  if (loading) {
+    return null;
+  }
 
   return (
     <Sidebar>
@@ -42,29 +46,27 @@ export function AppSidebar() {
           <div className="flex flex-col">
             <span className="font-display font-bold text-sm leading-tight">CareOps</span>
             <span className="text-[11px] text-muted-foreground leading-tight truncate max-w-[140px]">
-              {profile?.display_name || "Loading..."}
+              {profile?.display_name || user?.email || "User"}
             </span>
           </div>
         </div>
       </SidebarHeader>
 
       <SidebarContent>
-        {role === "admin" && (
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={location.pathname === "/onboarding"}>
-                    <NavLink to="/onboarding" className="text-primary font-medium">
-                      <Rocket className="h-4 w-4" />
-                      <span>Setup Wizard</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location.pathname === "/onboarding"}>
+                  <NavLink to="/onboarding" className="text-primary font-medium">
+                    <Rocket className="h-4 w-4" />
+                    <span>Setup Wizard</span>
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
         <SidebarGroup>
           <SidebarGroupLabel>Platform</SidebarGroupLabel>
