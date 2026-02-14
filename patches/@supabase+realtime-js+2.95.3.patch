@@ -23,7 +23,7 @@ index 0000000..294b071
 +}
 \ No newline at end of file
 diff --git a/node_modules/@supabase/realtime-js/dist/main/lib/websocket-factory.js b/node_modules/@supabase/realtime-js/dist/main/lib/websocket-factory.js
-index d20bc48..8e71efe 100644
+index d20bc48..846640f 100644
 --- a/node_modules/@supabase/realtime-js/dist/main/lib/websocket-factory.js
 +++ b/node_modules/@supabase/realtime-js/dist/main/lib/websocket-factory.js
 @@ -29,14 +29,6 @@ class WebSocketFactory {
@@ -51,8 +51,22 @@ index d20bc48..8e71efe 100644
                  if (nodeVersion >= 22) {
                      // Check if native WebSocket is available (should be in Node.js 22+)
                      if (typeof globalThis.WebSocket !== 'undefined') {
+@@ -60,11 +55,8 @@ class WebSocketFactory {
+                 }
+                 // Node.js < 22 doesn't have native WebSocket
+                 return {
+-                    type: 'unsupported',
+-                    error: `Node.js ${nodeVersion} detected without native WebSocket support.`,
+-                    workaround: 'For Node.js < 22, install "ws" package and provide it via the transport option:\n' +
+-                        'import ws from "ws"\n' +
+-                        'new RealtimeClient(url, { transport: ws })',
++                    type: 'native',
++                    constructor: globalThis.WebSocket || class { }
+                 };
+             }
+         }
 diff --git a/node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js b/node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
-index 93c592e..541d338 100644
+index 93c592e..d9bc88c 100644
 --- a/node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
 +++ b/node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
 @@ -26,14 +26,6 @@ export class WebSocketFactory {
@@ -80,8 +94,22 @@ index 93c592e..541d338 100644
                  if (nodeVersion >= 22) {
                      // Check if native WebSocket is available (should be in Node.js 22+)
                      if (typeof globalThis.WebSocket !== 'undefined') {
+@@ -57,11 +52,8 @@ export class WebSocketFactory {
+                 }
+                 // Node.js < 22 doesn't have native WebSocket
+                 return {
+-                    type: 'unsupported',
+-                    error: `Node.js ${nodeVersion} detected without native WebSocket support.`,
+-                    workaround: 'For Node.js < 22, install "ws" package and provide it via the transport option:\n' +
+-                        'import ws from "ws"\n' +
+-                        'new RealtimeClient(url, { transport: ws })',
++                    type: 'native',
++                    constructor: globalThis.WebSocket || class { }
+                 };
+             }
+         }
 diff --git a/node_modules/@supabase/realtime-js/src/lib/websocket-factory.ts b/node_modules/@supabase/realtime-js/src/lib/websocket-factory.ts
-index 8dc564b..e70acfc 100644
+index 8dc564b..d64ac6d 100644
 --- a/node_modules/@supabase/realtime-js/src/lib/websocket-factory.ts
 +++ b/node_modules/@supabase/realtime-js/src/lib/websocket-factory.ts
 @@ -51,7 +51,7 @@ export class WebSocketFactory {
@@ -124,3 +152,18 @@ index 8dc564b..e70acfc 100644
          if (nodeVersion >= 22) {
            // Check if native WebSocket is available (should be in Node.js 22+)
            if (typeof globalThis.WebSocket !== 'undefined') {
+@@ -117,12 +108,8 @@ export class WebSocketFactory {
+ 
+         // Node.js < 22 doesn't have native WebSocket
+         return {
+-          type: 'unsupported',
+-          error: `Node.js ${nodeVersion} detected without native WebSocket support.`,
+-          workaround:
+-            'For Node.js < 22, install "ws" package and provide it via the transport option:\n' +
+-            'import ws from "ws"\n' +
+-            'new RealtimeClient(url, { transport: ws })',
++          type: 'native',
++          constructor: globalThis.WebSocket || class { },
+         }
+       }
+     }
